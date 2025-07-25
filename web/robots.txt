@@ -1,0 +1,11 @@
+User-agent: *
+Allow: /
+
+# サイトマップの場所
+Sitemap: https://kyodoon.web.app/sitemap.xml
+
+# クロール制限（オプション）
+Crawl-delay: 1
+
+# 検索エンジン用の指示
+# Allow全般許可、特定のパスがあれば個別設定

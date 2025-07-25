@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir:*)",
+      "Bash(flutter run:*)",
+      "Bash(flutter pub:*)",
+      "Bash(flutter analyze:*)",
+      "Bash(start chrome http://localhost:8080)",
+      "Bash(mv:*)",
+      "Bash(taskkill:*)",
+      "Bash(flutter:*)",
+      "Bash(rm:*)",
+      "Bash(rg:*)",
+      "mcp__ide__getDiagnostics",
+      "Bash(find:*)"
+    ],
+    "deny": []
+  }
+}
