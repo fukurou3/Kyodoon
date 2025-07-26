@@ -1,47 +1,57 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
-import '../features/auth/presentation/providers/auth_provider.dart';
+import '../providers/riverpod_providers.dart';
 import '../widgets/login_modal.dart';
 import '../widgets/theme_toggle_button.dart';
-import '../screens/home_screen.dart';
-import '../screens/posts_screen.dart';
-import '../screens/my_page_screen.dart';
-import '../utils/navigation_helper.dart';
 import '../constants/app_colors.dart';
 
 /// メインナビゲーション画面
 /// 
 /// サイドバーナビゲーションとコンテンツエリアを管理
-class MainNavigationScreen extends StatefulWidget {
-  const MainNavigationScreen({super.key});
+class MainNavigationScreen extends ConsumerStatefulWidget {
+  final Widget child;
+  
+  const MainNavigationScreen({
+    super.key,
+    required this.child,
+  });
 
   @override
-  State<MainNavigationScreen> createState() => _MainNavigationScreenState();
+  ConsumerState<MainNavigationScreen> createState() => _MainNavigationScreenState();
 }
 
-class _MainNavigationScreenState extends State<MainNavigationScreen> 
+class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> 
     with TickerProviderStateMixin {
   int _currentIndex = 0;
-  String? _viewingUserId; // 他人のマイページを見る時のユーザーID
 
   @override
   void initState() {
     super.initState();
-    _setupAuthListener();
-    _setupNavigationCallbacks();
+    _updateCurrentIndex();
   }
 
-  /// 認証状態変化の監視設定
-  void _setupAuthListener() {
-    // Provider経由で認証状態を監視するため、このメソッドは簡略化
-    // 実際の監視はConsumer<AuthProvider>で行う
+  @override
+  void didUpdateWidget(MainNavigationScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _updateCurrentIndex();
   }
 
-  /// ナビゲーションコールバックの設定
-  void _setupNavigationCallbacks() {
-    NavigationHelper.setShowUserPageCallback(showUserPage);
-    NavigationHelper.setShowMyPageCallback(showMyPage);
+  /// 現在のルートに基づいてナビゲーションインデックスを更新
+  void _updateCurrentIndex() {
+    final location = GoRouterState.of(context).matchedLocation;
+    setState(() {
+      if (location.startsWith('/home')) {
+        _currentIndex = 0;
+      } else if (location.startsWith('/posts')) {
+        _currentIndex = 1;
+      } else if (location.startsWith('/my-page') || location.startsWith('/user/')) {
+        _currentIndex = 2;
+      } else {
+        _currentIndex = 0;
+      }
+    });
   }
 
   /// ログインモーダルの表示
@@ -52,27 +62,9 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
     );
     
     // ログイン成功時にマイページに遷移
-    if (result == true) {
-      setState(() {
-        _currentIndex = 2;
-      });
+    if (result == true && mounted) {
+      context.go('/my-page');
     }
-  }
-
-  /// 他人のマイページを表示
-  void showUserPage(String userId) {
-    setState(() {
-      _currentIndex = 2;
-      _viewingUserId = userId;
-    });
-  }
-
-  /// 自分のマイページを表示
-  void showMyPage() {
-    setState(() {
-      _currentIndex = 2;
-      _viewingUserId = null;
-    });
   }
 
   @override
@@ -190,9 +182,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
     required int index,
     required bool isCompact,
   }) {
-    // 他人のユーザーページを見ている場合は、マイページタブをハイライトしない
-    final isSelected = _currentIndex == index && 
-                      !(index == 2 && _viewingUserId != null);
+    final isSelected = _currentIndex == index;
     
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -241,45 +231,30 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
 
   /// ナビゲーションアイテムタップ処理
   void _handleNavItemTap(int index) {
-    // マイページタブに切り替える際の処理
-    if (index == 2) {
-      // ログインしていない場合の処理
-      if (!Provider.of<AuthProvider>(context, listen: false).isLoggedIn) {
-        // 現在他人のページを見ている場合は、そのまま維持
-        if (_viewingUserId != null) {
-          setState(() {
-            _currentIndex = index;
-          });
-        } else {
-          // 自分のページに行こうとした場合はログインモーダルを表示
+    switch (index) {
+      case 0:
+        context.go('/home');
+        break;
+      case 1:
+        context.go('/posts');
+        break;
+      case 2:
+        if (!ref.read(isLoggedInProvider)) {
           _showLoginModal();
+        } else {
+          context.go('/my-page');
         }
-        return;
-      }
+        break;
     }
-    
-    setState(() {
-      _currentIndex = index;
-      // マイページタブに切り替える際は自分のページに戻す
-      if (index == 2) {
-        _viewingUserId = null;
-      }
-    });
   }
 
   /// 認証ボタンの構築
   Widget _buildAuthButton(bool isCompact) {
     return Container(
       padding: const EdgeInsets.all(20),
-      child: Consumer<AuthProvider>(
-        builder: (context, authProvider, child) {
-          if (authProvider.isLoggedIn) {
-            return _buildLogoutButton(isCompact);
-          } else {
-            return _buildLoginButton(isCompact);
-          }
-        },
-      ),
+      child: ref.watch(isLoggedInProvider)
+          ? _buildLogoutButton(isCompact)
+          : _buildLoginButton(isCompact),
     );
   }
 
@@ -289,7 +264,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
       width: double.infinity,
       child: isCompact
           ? IconButton(
-              onPressed: () => Provider.of<AuthProvider>(context, listen: false).signOut(),
+              onPressed: () => ref.read(authUseCaseProvider).signOut(),
               icon: const Icon(Icons.logout_outlined),
               style: IconButton.styleFrom(
                 backgroundColor: AppColors.background,
@@ -301,7 +276,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
               ),
             )
           : ElevatedButton.icon(
-              onPressed: () => Provider.of<AuthProvider>(context, listen: false).signOut(),
+              onPressed: () => ref.read(authUseCaseProvider).signOut(),
               icon: const Icon(Icons.logout_outlined, size: 18),
               label: const Text('ログアウト'),
               style: ElevatedButton.styleFrom(
@@ -418,18 +393,17 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
 
   /// アプリバータイトルの取得
   String _getAppBarTitle() {
-    switch (_currentIndex) {
-      case 0:
-        return '地域活性化プラットフォーム';
-      case 1:
-        return '気づき・アイデア';
-      case 2:
-        if (_viewingUserId != null) {
-          return 'ユーザーページ';
-        }
-        return 'マイページ';
-      default:
-        return '地域活性化プラットフォーム';
+    final location = GoRouterState.of(context).matchedLocation;
+    if (location.startsWith('/home')) {
+      return '地域活性化プラットフォーム';
+    } else if (location.startsWith('/posts')) {
+      return '気づき・アイデア';
+    } else if (location.startsWith('/user/')) {
+      return 'ユーザーページ';
+    } else if (location.startsWith('/my-page')) {
+      return 'マイページ';
+    } else {
+      return '地域活性化プラットフォーム';
     }
   }
 
@@ -448,23 +422,6 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
 
   /// ボディコンテンツの取得
   Widget _getBodyContent() {
-    switch (_currentIndex) {
-      case 0:
-        return const HomePageContent();
-      case 1:
-        return const PostsScreen();
-      case 2:
-        // 他人のページを見ている場合
-        if (_viewingUserId != null) {
-          return MyPageScreen(userId: _viewingUserId, isOwnPage: false);
-        }
-        // 自分のページを見る場合はログインが必要
-        if (!Provider.of<AuthProvider>(context, listen: false).isLoggedIn) {
-          return const HomePageContent();
-        }
-        return const MyPageScreen(isOwnPage: true);
-      default:
-        return const HomePageContent();
-    }
+    return widget.child;
   }
 }

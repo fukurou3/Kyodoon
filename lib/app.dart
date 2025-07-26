@@ -1,30 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'themes/app_theme.dart';
-import 'providers/theme_provider.dart';
-import 'navigation/auth_wrapper.dart';
+import 'providers/riverpod_providers.dart';
+import 'navigation/app_router.dart';
 
 /// メインアプリケーションウィジェット
 /// 
 /// MaterialAppの設定とテーマ管理を担当
-class KyodoonApp extends StatelessWidget {
+class KyodoonApp extends ConsumerWidget {
   const KyodoonApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return Consumer<ThemeProvider>(
-      builder: (context, themeProvider, child) {
-        return MaterialApp(
-          title: '地域活性化共創プラットフォーム',
-          theme: _buildLightTheme(),
-          darkTheme: _buildDarkTheme(),
-          themeMode: _getThemeMode(themeProvider.themeMode),
-          home: const AuthWrapper(),
-          debugShowCheckedModeBanner: false,
-        );
-      },
+  Widget build(BuildContext context, WidgetRef ref) {
+    final themeMode = ref.watch(themeModeProvider);
+    
+    return MaterialApp.router(
+      title: '地域活性化共創プラットフォーム',
+      theme: _buildLightTheme(),
+      darkTheme: _buildDarkTheme(),
+      themeMode: _getThemeMode(themeMode),
+      routerConfig: AppRouter.router,
+      debugShowCheckedModeBanner: false,
     );
   }
 

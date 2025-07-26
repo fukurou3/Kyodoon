@@ -63,6 +63,15 @@ dependencies:
   provider: ^6.1.2
   shared_preferences: ^2.2.2
   
+  # Dependency Injection
+  get_it: ^8.0.0
+  
+  # Navigation
+  go_router: ^14.6.1
+  
+  # Modern State Management
+  flutter_riverpod: ^2.6.1
+  
   # Environment Variables
   flutter_dotenv: ^5.1.0
 

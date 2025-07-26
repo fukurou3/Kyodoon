@@ -35,7 +35,7 @@ class AuthWrapper extends StatelessWidget {
                 }
               });
               
-              return const MainNavigationScreen();
+              return const MainNavigationScreen(child: SizedBox.shrink());
             },
           );
         } else {

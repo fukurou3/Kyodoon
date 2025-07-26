@@ -57,3 +57,8 @@ firebase_options.dart
 
 # Private Documentation (contains sensitive security information)
 docs_private/
+
+# Risk management and correction files
+リスク管理.txt
+修正点.txt
+.claude/commands/syuusei.md

@@ -6,7 +6,7 @@ import '../firebase_options.dart';
 import '../utils/rate_limiter.dart';
 import '../services/analytics_service.dart';
 import '../config/app_config.dart';
-import 'di/injection_container.dart';
+import 'di/service_locator.dart';
 
 /// アプリケーション初期化を担当するクラス
 class AppInitializer {
@@ -44,7 +44,7 @@ class AppInitializer {
     await AnalyticsService.initialize();
     
     // 依存性注入コンテナ初期化
-    InjectionContainer.instance.initialize();
+    await setupServiceLocator();
 
     _initialized = true;
   }
