@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../providers/riverpod_providers.dart';
+import '../core/auth/auth_providers.dart';
 import '../screens/landing_page.dart';
 import '../screens/home_screen.dart';
 import '../screens/posts_screen.dart';
@@ -17,11 +17,10 @@ import 'main_navigation_screen.dart';
 /// 
 /// GoRouterを使用したナビゲーション管理
 class AppRouter {
-  static final ProviderContainer _container = ProviderContainer();
-  
-  static final GoRouter _router = GoRouter(
-    initialLocation: '/',
-    routes: [
+  static GoRouter createRouter(WidgetRef ref) {
+    return GoRouter(
+      initialLocation: '/',
+      routes: [
       // ランディングページ
       GoRoute(
         path: '/',
@@ -97,22 +96,32 @@ class AppRouter {
       ),
     ],
     
-    // 認証状態に基づくリダイレクト
-    redirect: (context, state) {
-      final isLoggedIn = _container.read(isLoggedInProvider);
-      final isOnLanding = state.matchedLocation == '/';
-      
-      // 未ログインでメインエリアにアクセスしようとした場合
-      if (!isLoggedIn && !isOnLanding) {
-        // 特定の画面（利用規約など）は除外
-        final allowedPaths = ['/terms', '/privacy'];
-        if (!allowedPaths.contains(state.matchedLocation)) {
+      // 認証状態に基づくリダイレクト
+      redirect: (context, state) {
+        final isLoggedIn = ref.read(isLoggedInProvider);
+        final isLoading = ref.read(authLoadingProvider);
+        
+        // ローディング中は何もしない
+        if (isLoading) return null;
+        
+        final location = state.uri.toString();
+        
+        // 認証が必要なパス
+        final protectedPaths = ['/home', '/posts', '/my-page', '/casual-post', '/serious-post'];
+        final isProtectedPath = protectedPaths.any((path) => location.startsWith(path));
+        
+        // 未認証でprotectedパスにアクセスしようとした場合はランディングページへ
+        if (!isLoggedIn && isProtectedPath) {
           return '/';
         }
-      }
-      
-      return null; // リダイレクトしない
-    },
+        
+        // 認証済みでランディングページにいる場合はホームへ
+        if (isLoggedIn && location == '/') {
+          return '/home';
+        }
+        
+        return null;
+      },
     
     // エラーページ
     errorBuilder: (context, state) => Scaffold(
@@ -137,9 +146,8 @@ class AppRouter {
         ),
       ),
     ),
-  );
-
-  static GoRouter get router => _router;
+    );
+  }
 }
 
 /// GoRouterの拡張メソッド

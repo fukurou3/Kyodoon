@@ -47,6 +47,14 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
+  Future<UserEntity?> getCurrentUserEntity() async {
+    final user = _firebaseAuth.currentUser;
+    if (user == null) return null;
+    
+    return await _mapFirebaseUserToEntity(user);
+  }
+
+  @override
   bool get isLoggedIn => _firebaseAuth.currentUser != null;
 
   @override

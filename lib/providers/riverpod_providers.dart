@@ -60,10 +60,20 @@ final authStateProvider = StreamProvider<User?>((ref) {
   return ref.read(firebaseAuthProvider).authStateChanges();
 });
 
-// 現在のユーザー情報
-final currentUserProvider = Provider<UserEntity?>((ref) {
-  final authUseCase = ref.read(authUseCaseProvider);
-  return authUseCase.currentUser;
+// 現在のユーザー情報（UserEntityとして取得）
+final currentUserProvider = FutureProvider<UserEntity?>((ref) async {
+  final authState = ref.watch(authStateProvider);
+  return authState.when(
+    data: (user) async {
+      if (user == null) return null;
+      
+      // Firebase UserからUserEntityに変換
+      final authUseCase = ref.read(authUseCaseProvider);
+      return authUseCase.currentUser;
+    },
+    loading: () => null,
+    error: (_, __) => null,
+  );
 });
 
 // ログイン状態
@@ -75,6 +85,91 @@ final isLoggedInProvider = Provider<bool>((ref) {
     error: (_, __) => false,
   );
 });
+
+// 認証ローディング状態
+final authLoadingProvider = Provider<bool>((ref) {
+  final authState = ref.watch(authStateProvider);
+  return authState.isLoading;
+});
+
+// 認証エラー
+final authErrorProvider = Provider<String?>((ref) {
+  final authState = ref.watch(authStateProvider);
+  return authState.when(
+    data: (_) => null,
+    loading: () => null,
+    error: (error, _) => error.toString(),
+  );
+});
+
+// 認証操作
+final authActionsProvider = Provider<AuthActions>((ref) {
+  return AuthActions(ref.read(authUseCaseProvider));
+});
+
+/// 認証操作クラス
+class AuthActions {
+  final AuthUseCase _authUseCase;
+  
+  AuthActions(this._authUseCase);
+  
+  /// ログイン
+  Future<void> signIn({
+    required String email,
+    required String password,
+  }) async {
+    try {
+      await _authUseCase.signIn(email: email, password: password);
+    } catch (e) {
+      // エラーを再スローして上位でハンドリング
+      throw Exception('ログインに失敗しました: ${e.toString()}');
+    }
+  }
+  
+  /// サインアップ
+  Future<void> signUp({
+    required String email,
+    required String password,
+    String? displayName,
+  }) async {
+    try {
+      await _authUseCase.signUp(
+        email: email,
+        password: password,
+        displayName: displayName,
+      );
+    } catch (e) {
+      // エラーを再スローして上位でハンドリング
+      throw Exception('アカウント作成に失敗しました: ${e.toString()}');
+    }
+  }
+  
+  /// ログアウト
+  Future<void> signOut() async {
+    await _authUseCase.signOut();
+  }
+  
+  /// パスワードリセット
+  Future<void> resetPassword(String email) async {
+    await _authUseCase.resetPassword(email);
+  }
+  
+  /// メール確認
+  Future<void> sendEmailVerification() async {
+    await _authUseCase.sendEmailVerification();
+  }
+  
+  /// プロフィール更新
+  Future<void> updateProfile({
+    String? displayName,
+    String? photoUrl,
+  }) async {
+    await _authUseCase.updateProfile(
+      displayName: displayName,
+      photoUrl: photoUrl,
+    );
+  }
+}
 
 // ========== Posts Feature ==========
 

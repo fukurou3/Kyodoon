@@ -17,6 +17,12 @@ class AuthUseCase {
   /// 現在のユーザー
   UserEntity? get currentUser => _repository.currentUser;
 
+  /// 現在のユーザーエンティティを非同期で取得
+  /// Firestore連携を含む完全なユーザー情報を取得
+  Future<UserEntity?> getCurrentUserEntity() async {
+    return await _repository.getCurrentUserEntity();
+  }
+
   /// ログイン状態
   bool get isLoggedIn => _repository.isLoggedIn;
 

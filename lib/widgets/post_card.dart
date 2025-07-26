@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../features/posts/domain/entities/post_entity.dart';
 import '../utils/date_utils.dart' as app_date_utils;
 import 'package:go_router/go_router.dart';
-import '../providers/riverpod_providers.dart';
+import '../core/auth/auth_providers.dart';
 import '../themes/app_theme.dart';
 import '../utils/security_validator.dart';
 
@@ -57,7 +57,7 @@ class _PostCardState extends ConsumerState<PostCard> {
 
   @override
   Widget build(BuildContext context) {
-    final currentUser = ref.watch(currentUserProvider);
+    final currentUser = ref.watch(authenticatedUserProvider);
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),

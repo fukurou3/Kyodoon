@@ -3,7 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'themes/app_theme.dart';
-import 'providers/riverpod_providers.dart';
+import 'core/auth/auth_providers.dart';
 import 'navigation/app_router.dart';
 
 /// メインアプリケーションウィジェット
@@ -14,14 +14,17 @@ class KyodoonApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final themeMode = ref.watch(themeModeProvider);
+    // 認証状態をwatchして初期化トリガー
+    ref.watch(authStateProvider);
+    
+    final router = AppRouter.createRouter(ref);
     
     return MaterialApp.router(
       title: '地域活性化共創プラットフォーム',
       theme: _buildLightTheme(),
       darkTheme: _buildDarkTheme(),
-      themeMode: _getThemeMode(themeMode),
-      routerConfig: AppRouter.router,
+      themeMode: ThemeMode.system, // システム設定に従う
+      routerConfig: router,
       debugShowCheckedModeBanner: false,
     );
   }
@@ -52,10 +55,4 @@ class KyodoonApp extends ConsumerWidget {
     );
   }
 
-  /// テーマモードの変換
-  ThemeMode _getThemeMode(AppThemeMode appThemeMode) {
-    return appThemeMode == AppThemeMode.light 
-        ? ThemeMode.light 
-        : ThemeMode.dark;
-  }
 }

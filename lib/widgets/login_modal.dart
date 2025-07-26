@@ -1,18 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:provider/provider.dart';
-import '../features/auth/presentation/providers/auth_provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../providers/riverpod_providers.dart';
 import '../utils/validators.dart';
 import '../utils/security_validator.dart';
 
-class LoginModal extends StatefulWidget {
+class LoginModal extends ConsumerStatefulWidget {
   const LoginModal({super.key});
 
   @override
-  State<LoginModal> createState() => _LoginModalState();
+  ConsumerState<LoginModal> createState() => _LoginModalState();
 }
 
-class _LoginModalState extends State<LoginModal> {
+class _LoginModalState extends ConsumerState<LoginModal> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _nameController = TextEditingController();
@@ -84,15 +84,15 @@ class _LoginModalState extends State<LoginModal> {
     setState(() => _isLoading = true);
 
     try {
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final authActions = ref.read(authActionsProvider);
       
       if (_isLogin) {
-        await authProvider.signIn(
+        await authActions.signIn(
           email: email,
           password: password,
         );
       } else {
-        await authProvider.signUp(
+        await authActions.signUp(
           email: email,
           password: password,
           displayName: name,

@@ -10,6 +10,9 @@ abstract class AuthRepository {
   /// 現在のユーザーを取得
   UserEntity? get currentUser;
 
+  /// 現在のユーザーエンティティを非同期で取得（Firestore連携込み）
+  Future<UserEntity?> getCurrentUserEntity();
+
   /// ログイン状態の確認
   bool get isLoggedIn;
 
