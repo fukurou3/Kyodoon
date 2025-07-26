@@ -46,9 +46,8 @@ bool validateEmail(String email);
 class PostCard extends StatelessWidget {}
 class UserProfileScreen extends StatefulWidget {}
 
-// Model
-class UserModel {}
-class PostModel {}
+// Model (実装済み - features/{auth,posts,profile}/data/models/内に配置)
+// UserModel, PostModel, CommentModel, ProfileModel など
 
 // Service
 class AuthService {}
