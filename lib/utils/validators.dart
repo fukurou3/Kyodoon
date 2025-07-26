@@ -1,3 +1,5 @@
+import 'security_validator.dart';
+
 /// アプリケーション共通のバリデーション機能
 class Validators {
   /// メールアドレスのバリデーション
@@ -32,7 +34,7 @@ class Validators {
     return null;
   }
   
-  /// 投稿内容のバリデーション
+  /// 投稿内容のバリデーション（XSS対策強化版）
   static String? validatePostContent(String? value, {int maxLength = 280}) {
     if (value == null || value.isEmpty) {
       return '内容を入力してください';
@@ -46,10 +48,16 @@ class Validators {
       return '$maxLength文字以内で入力してください';
     }
     
+    // XSS対策: SecurityValidatorを使用した包括的な検証
+    final securityValidation = SecurityValidator.validatePostContent(value);
+    if (!securityValidation.isValid) {
+      return securityValidation.errorMessage;
+    }
+    
     return null;
   }
   
-  /// 投稿タイトルのバリデーション
+  /// 投稿タイトルのバリデーション（XSS対策強化版）
   static String? validatePostTitle(String? value, {int maxLength = 100}) {
     if (value == null || value.isEmpty) {
       return 'タイトルを入力してください';
@@ -61,6 +69,35 @@ class Validators {
     
     if (value.length > maxLength) {
       return '$maxLength文字以内で入力してください';
+    }
+    
+    // XSS対策: SecurityValidatorを使用した包括的な検証
+    final securityValidation = SecurityValidator.validatePostTitle(value);
+    if (!securityValidation.isValid) {
+      return securityValidation.errorMessage;
+    }
+    
+    return null;
+  }
+  
+  /// コメント内容のバリデーション（XSS対策強化版）
+  static String? validateCommentContent(String? value, {int maxLength = 500}) {
+    if (value == null || value.isEmpty) {
+      return 'コメント内容を入力してください';
+    }
+    
+    if (value.trim().isEmpty) {
+      return 'コメント内容を入力してください';
+    }
+    
+    if (value.length > maxLength) {
+      return '$maxLength文字以内で入力してください';
+    }
+    
+    // XSS対策: SecurityValidatorを使用した包括的な検証
+    final securityValidation = SecurityValidator.validateCommentContent(value);
+    if (!securityValidation.isValid) {
+      return securityValidation.errorMessage;
     }
     
     return null;

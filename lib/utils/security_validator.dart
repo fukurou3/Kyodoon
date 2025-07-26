@@ -1,22 +1,75 @@
 
+import '../features/profile/domain/entities/user_preferences_entity.dart';
+
 /// セキュリティ関連のバリデーションとサニタイズを行うクラス
 class SecurityValidator {
   
-  // 危険なHTMLタグやJavaScriptを検出するパターン
+  // 高度なXSS攻撃を検出する危険パターン（大文字小文字混在、エンコーディング対応）
   static final List<RegExp> _dangerousPatterns = [
-    RegExp(r'<script[^>]*>.*?</script>', caseSensitive: false, multiLine: true, dotAll: true),
-    RegExp(r'javascript:', caseSensitive: false),
-    RegExp(r'on\w+\s*=', caseSensitive: false), // onclick, onerror, etc.
-    RegExp(r'<iframe[^>]*>', caseSensitive: false),
-    RegExp(r'<object[^>]*>', caseSensitive: false),
-    RegExp(r'<embed[^>]*>', caseSensitive: false),
-    RegExp(r'<link[^>]*>', caseSensitive: false),
-    RegExp(r'<meta[^>]*>', caseSensitive: false),
-    RegExp(r'<style[^>]*>.*?</style>', caseSensitive: false, multiLine: true, dotAll: true),
-    RegExp(r'expression\s*\(', caseSensitive: false),
-    RegExp(r'vbscript:', caseSensitive: false),
-    RegExp(r'livescript:', caseSensitive: false),
-    RegExp(r'mocha:', caseSensitive: false),
+    // HTMLタグ（大文字小文字混在、スペース、改行対応）
+    RegExp(r'<\s*[sS][cC][rR][iI][pP][tT][^>]*>.*?</\s*[sS][cC][rR][iI][pP][tT]\s*>', dotAll: true),
+    RegExp(r'<\s*[iI][fF][rR][aA][mM][eE][^>]*>', caseSensitive: false),
+    RegExp(r'<\s*[oO][bB][jJ][eE][cC][tT][^>]*>', caseSensitive: false),
+    RegExp(r'<\s*[eE][mM][bB][eE][dD][^>]*>', caseSensitive: false),
+    RegExp(r'<\s*[fF][oO][rR][mM][^>]*>', caseSensitive: false),
+    RegExp(r'<\s*[iI][nN][pP][uU][tT][^>]*>', caseSensitive: false),
+    RegExp(r'<\s*[mM][eE][tT][aA][^>]*>', caseSensitive: false),
+    RegExp(r'<\s*[lL][iI][nN][kK][^>]*>', caseSensitive: false),
+    RegExp(r'<\s*[sS][tT][yY][lL][eE][^>]*>.*?</\s*[sS][tT][yY][lL][eE]\s*>', dotAll: true),
+    RegExp(r'<\s*[bB][aA][sS][eE][^>]*>', caseSensitive: false),
+    
+    // JavaScript実行（エンコーディング対応）
+    RegExp(r'[jJ][aA][vV][aA][sS][cC][rR][iI][pP][tT]\s*:'),
+    RegExp(r'[vV][bB][sS][cC][rR][iI][pP][tT]\s*:'),
+    RegExp(r'[dD][aA][tT][aA]\s*:'),
+    RegExp(r'[mM][oO][cC][hH][aA]\s*:'),
+    RegExp(r'[lL][iI][vV][eE][sS][cC][rR][iI][pP][tT]\s*:'),
+    
+    // イベントハンドラー（包括的）
+    RegExp(r'[oO][nN]\w+\s*='),
+    RegExp(r'[oO][nN][cC][lL][iI][cC][kK]\s*='),
+    RegExp(r'[oO][nN][lL][oO][aA][dD]\s*='),
+    RegExp(r'[oO][nN][eE][rR][rR][oO][rR]\s*='),
+    RegExp(r'[oO][nN][fF][oO][cC][uU][sS]\s*='),
+    RegExp(r'[oO][nN][bB][lL][uU][rR]\s*='),
+    RegExp(r'[oO][nN][mM][oO][uU][sS][eE][oO][vV][eE][rR]\s*='),
+    RegExp(r'[oO][nN][mM][oO][uU][sS][eE][oO][uU][tT]\s*='),
+    RegExp(r'[oO][nN][kK][eE][yY][dD][oO][wW][nN]\s*='),
+    RegExp(r'[oO][nN][kK][eE][yY][uU][pP]\s*='),
+    RegExp(r'[oO][nN][sS][uU][bB][mM][iI][tT]\s*='),
+    
+    // 評価系関数
+    RegExp(r'[eE][vV][aA][lL]\s*\('),
+    RegExp(r'[fF][uU][nN][cC][tT][iI][oO][nN]\s*\('),
+    RegExp(r'[sS][eE][tT][tT][iI][mM][eE][oO][uU][tT]\s*\('),
+    RegExp(r'[sS][eE][tT][iI][nN][tT][eE][rR][vV][aA][lL]\s*\('),
+    RegExp(r'[eE][xX][eE][cC][sS][cC][rR][iI][pP][tT]\s*\('),
+    RegExp(r'[eE][xX][pP][rR][eE][sS][sS][iI][oO][nN]\s*\('),
+    
+    // HTMLエンティティエンコーディング攻撃
+    RegExp(r'&#x?[0-9a-fA-F]+;'),
+    RegExp(r'&[a-zA-Z][a-zA-Z0-9]+;'),
+    
+    // URLエンコーディング攻撃
+    RegExp(r'%[0-9a-fA-F]{2}'),
+    RegExp(r'\\u[0-9a-fA-F]{4}'),
+    RegExp(r'\\x[0-9a-fA-F]{2}'),
+    
+    // Unicode制御文字
+    RegExp(r'[\u0000-\u001F\u007F-\u009F]'),
+    RegExp(r'[\u200B-\u200D\uFEFF]'), // Zero-width characters
+    
+    // Base64エンコーディングによる攻撃
+    RegExp(r'[dD][aA][tT][aA]:[^;]*;[bB][aA][sS][eE]64,'),
+    
+    // CSS式による攻撃
+    RegExp(r'[bB][eE][hH][aA][vV][iI][oO][rR]\s*:'),
+    RegExp(r'-[mM][oO][zZ]-[bB][iI][nN][dD][iI][nN][gG]'),
+    
+    // XMLエンティティ攻撃
+    RegExp(r'<!ENTITY'),
+    RegExp(r'<!DOCTYPE'),
+    RegExp(r'<!\[CDATA\['),
   ];
 
   /// テキスト内容のXSS攻撃をチェック
@@ -59,6 +112,28 @@ class SecurityValidator {
     
     // 連続する空白文字をチェック
     if (RegExp(r'\s{10,}').hasMatch(content)) {
+      return ValidationResult(false, '過度な空白文字は使用できません');
+    }
+    
+    return ValidationResult(true, null);
+  }
+
+  /// 投稿タイトルのバリデーション
+  static ValidationResult validatePostTitle(String title) {
+    if (title.isEmpty) {
+      return ValidationResult(false, 'タイトルを入力してください');
+    }
+    
+    if (title.length > 100) {
+      return ValidationResult(false, 'タイトルは100文字以内で入力してください');
+    }
+    
+    if (containsXssThreats(title)) {
+      return ValidationResult(false, '不正なコンテンツが検出されました');
+    }
+    
+    // 連続する空白文字をチェック
+    if (RegExp(r'\s{5,}').hasMatch(title)) {
       return ValidationResult(false, '過度な空白文字は使用できません');
     }
     
@@ -156,7 +231,7 @@ class SecurityValidator {
     return ValidationResult(true, null);
   }
 
-  /// 文字をHTMLエンティティにエンコード
+  /// 強化されたHTMLエンティティエンコーディング
   static String _htmlEncode(String input) {
     return input
         .replaceAll('&', '&amp;')
@@ -164,9 +239,110 @@ class SecurityValidator {
         .replaceAll('>', '&gt;')
         .replaceAll('"', '&quot;')
         .replaceAll("'", '&#x27;')
-        .replaceAll('/', '&#x2F;');
+        .replaceAll('/', '&#x2F;')
+        .replaceAll('\n', '&#10;')
+        .replaceAll('\r', '&#13;')
+        .replaceAll('\t', '&#9;')
+        .replaceAll('\u0000', '') // NULL文字除去
+        .replaceAll('\u200B', '') // Zero-width space
+        .replaceAll('\u200C', '') // Zero-width non-joiner
+        .replaceAll('\u200D', '') // Zero-width joiner
+        .replaceAll('\uFEFF', ''); // Byte order mark
   }
 
+  /// ブロックユーザーIDのバリデーション
+  static ValidationResult validateUserIdForBlocking(String userId) {
+    if (userId.isEmpty) {
+      return ValidationResult(false, 'ユーザーIDが空です');
+    }
+    
+    if (userId.length > 128) {
+      return ValidationResult(false, 'ユーザーIDが長すぎます');
+    }
+    
+    // Firebase Auth UID形式の検証
+    if (!RegExp(r'^[a-zA-Z0-9][a-zA-Z0-9._-]*$').hasMatch(userId)) {
+      return ValidationResult(false, '無効なユーザーID形式です');
+    }
+    
+    return ValidationResult(true, null);
+  }
+  
+  /// ミュートキーワードのバリデーション
+  static ValidationResult validateMutedKeyword(String keyword) {
+    if (keyword.isEmpty) {
+      return ValidationResult(false, 'キーワードが空です');
+    }
+    
+    if (keyword.length > 100) {
+      return ValidationResult(false, 'キーワードが長すぎます（最大100文字）');
+    }
+    
+    // XSS攻撃チェック
+    if (containsXssThreats(keyword)) {
+      return ValidationResult(false, '不正なコンテンツが検出されました');
+    }
+    
+    // 制御文字のチェック
+    if (RegExp(r'[\u0000-\u001F\u007F-\u009F]').hasMatch(keyword)) {
+      return ValidationResult(false, '制御文字は使用できません');
+    }
+    
+    return ValidationResult(true, null);
+  }
+  
+  /// ブロックユーザーリストのバリデーション
+  static ValidationResult validateBlockedUsersList(List<String> blockedUsers) {
+    if (blockedUsers.length > 1000) {
+      return ValidationResult(false, 'ブロックユーザー数が上限を超えています（最大1000ユーザー）');
+    }
+    
+    for (final userId in blockedUsers) {
+      final validation = validateUserIdForBlocking(userId);
+      if (!validation.isValid) {
+        return ValidationResult(false, '無効なユーザーIDが含まれています: ${validation.errorMessage}');
+      }
+    }
+    
+    // 重複チェック
+    final uniqueUsers = blockedUsers.toSet();
+    if (uniqueUsers.length != blockedUsers.length) {
+      return ValidationResult(false, '重複したユーザーIDが含まれています');
+    }
+    
+    return ValidationResult(true, null);
+  }
+  
+  /// ミュートキーワードリストのバリデーション
+  static ValidationResult validateMutedKeywordsList(List<String> mutedKeywords) {
+    if (mutedKeywords.length > 500) {
+      return ValidationResult(false, 'ミュートキーワード数が上限を超えています（最大500キーワード）');
+    }
+    
+    for (final keyword in mutedKeywords) {
+      final validation = validateMutedKeyword(keyword);
+      if (!validation.isValid) {
+        return ValidationResult(false, '無効なキーワードが含まれています: ${validation.errorMessage}');
+      }
+    }
+    
+    // 重複チェック
+    final uniqueKeywords = mutedKeywords.toSet();
+    if (uniqueKeywords.length != mutedKeywords.length) {
+      return ValidationResult(false, '重複したキーワードが含まれています');
+    }
+    
+    return ValidationResult(true, null);
+  }
+  
+  /// プライバシー設定のバリデーション
+  static ValidationResult validatePrivacySettings(PrivacySettings privacy) {
+    // 基本的な設定値は boolean なので特別な検証は不要
+    // ただし、将来的な拡張に備えて構造を用意
+    
+    return ValidationResult(true, null);
+  }
+  
   /// SQLインジェクション対策（Firestoreでは不要だが、将来的な拡張のため）
   static bool containsSqlInjectionThreats(String input) {
     final sqlPatterns = [

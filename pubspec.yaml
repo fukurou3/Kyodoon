@@ -39,7 +39,9 @@ dependencies:
   firebase_core: ^3.6.0
   firebase_auth: ^5.3.1
   cloud_firestore: ^5.4.3
+  firebase_storage: ^12.3.2
   firebase_analytics: ^11.3.3
+  cloud_functions: ^5.6.1
   
   # UI
   google_fonts: ^6.2.1
@@ -74,6 +76,15 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^5.0.0
+  
+  # Integration Testing
+  integration_test:
+    sdk: flutter
+  
+  # Testing Dependencies
+  mockito: ^5.4.4
+  build_runner: ^2.4.7
+  
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

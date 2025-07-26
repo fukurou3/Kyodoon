@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import '../models/post_models.dart';
-import '../services/firestore_service.dart';
+import 'package:provider/provider.dart';
+import '../features/posts/domain/entities/post_entity.dart';
+import '../features/posts/presentation/providers/posts_provider.dart';
 import '../widgets/post_card.dart';
 import '../utils/app_logger.dart';
 import '../themes/app_theme.dart';
@@ -26,9 +27,11 @@ class _SeriousPostScreenState extends State<SeriousPostScreen> {
             child: Center(
               child: Container(
                 constraints: const BoxConstraints(maxWidth: 800),
-                child: StreamBuilder<List<PostModel>>(
-                  stream: FirestoreService.getSeriousPosts(),
-                  builder: (context, snapshot) {
+                child: Consumer<PostsProvider>(
+                  builder: (context, postsProvider, child) {
+                    return StreamBuilder<List<PostEntity>>(
+                      stream: postsProvider.getSeriousPosts(),
+                      builder: (context, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {
                       return Center(
                         child: CircularProgressIndicator(
@@ -84,12 +87,14 @@ class _SeriousPostScreenState extends State<SeriousPostScreen> {
                       );
                     }
                     
-                    return ListView.builder(
-                      controller: _scrollController,
-                      itemCount: snapshot.data!.length,
-                      itemBuilder: (context, index) {
-                        final post = snapshot.data![index];
-                        return PostCard(post: post);
+                        return ListView.builder(
+                          controller: _scrollController,
+                          itemCount: snapshot.data!.length,
+                          itemBuilder: (context, index) {
+                            final post = snapshot.data![index];
+                            return PostCard(post: post);
+                          },
+                        );
                       },
                     );
                   },

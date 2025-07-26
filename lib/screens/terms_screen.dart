@@ -78,7 +78,7 @@ class TermsScreen extends StatelessWidget {
             ),
             const SizedBox(height: 32),
             Text(
-              '最終更新日：2024年12月',
+              '最終更新日：2025年7月26日',
               style: GoogleFonts.inter(
                 fontSize: AppConstants.fontSizeCaption,
                 color: AppColors.text,

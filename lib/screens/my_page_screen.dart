@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import '../services/auth_service.dart';
-import '../services/firestore_service.dart';
-import '../models/post_models.dart';
+import 'package:provider/provider.dart';
+import '../features/auth/presentation/providers/auth_provider.dart';
+import '../features/posts/presentation/providers/posts_provider.dart';
+import '../features/posts/domain/entities/post_entity.dart';
 import '../widgets/post_card.dart';
-import '../utils/error_handler.dart';
 import '../themes/app_theme.dart';
 
 class MyPageScreen extends StatefulWidget {
@@ -21,7 +21,7 @@ class MyPageScreen extends StatefulWidget {
 }
 
 class _MyPageScreenState extends State<MyPageScreen> {
-  List<PostModel> userPosts = [];
+  List<PostEntity> userPosts = [];
   bool isLoading = true;
   Map<String, dynamic>? userProfile;
 
@@ -33,15 +33,17 @@ class _MyPageScreenState extends State<MyPageScreen> {
 
   Future<void> _loadUserData() async {
     try {
-      final targetUserId = widget.userId ?? AuthService.getCurrentUserId();
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final postsProvider = Provider.of<PostsProvider>(context, listen: false);
+      // final profileProvider = Provider.of<ProfileProvider>(context, listen: false);
+      
+      final targetUserId = widget.userId ?? authProvider.currentUser?.id;
       if (targetUserId != null) {
         // ユーザーの投稿を取得
-        final postsResult = await FirestoreService.getUserPosts(targetUserId);
+        final postsResult = await postsProvider.getUserPosts(targetUserId);
         
         setState(() {
-          if (postsResult.isSuccess) {
-            userPosts = postsResult.data!;
-          }
+          userPosts = postsResult;
           isLoading = false;
         });
       }
@@ -74,14 +76,10 @@ class _MyPageScreenState extends State<MyPageScreen> {
                 bottom: BorderSide(color: AppColors.text, width: 1),
               ),
             ),
-            child: FutureBuilder<AppResult<Map<String, dynamic>?>>(
-              future: widget.isOwnPage
-                  ? AuthService.getUserData(AuthService.getCurrentUserId() ?? '')
-                  : AuthService.getUserData(widget.userId ?? ''),
-              builder: (context, snapshot) {
-                final userName = (snapshot.data?.isSuccess == true && snapshot.data?.data != null) 
-                    ? snapshot.data!.data!['name'] ?? 'ユーザー' 
-                    : 'ユーザー';
+            child: Consumer<AuthProvider>(
+              builder: (context, authProvider, child) {
+                final currentUser = authProvider.currentUser;
+                final userName = currentUser?.displayName ?? 'ユーザー';
                 
                 return Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -146,7 +144,7 @@ class _MyPageScreenState extends State<MyPageScreen> {
                           Row(
                             children: [
                               // 他人のページの場合はメッセージとフォローボタン
-                              if (!widget.isOwnPage && widget.userId != AuthService.getCurrentUserId()) ...[
+                              if (!widget.isOwnPage && widget.userId != authProvider.currentUser?.id) ...[
                                 // メッセージボタン
                                 ElevatedButton.icon(
                                   onPressed: () {

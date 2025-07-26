@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import '../models/post_models.dart';
-import '../services/firestore_service.dart';
+import 'package:provider/provider.dart';
+import '../features/posts/domain/entities/post_entity.dart';
+import '../features/posts/presentation/providers/posts_provider.dart';
 import '../widgets/post_card.dart';
 import '../widgets/casual_post_modal.dart';
 import '../utils/app_logger.dart';
@@ -18,9 +19,9 @@ class _CasualPostScreenState extends State<CasualPostScreen> {
 
   Future<void> _showAllPosts() async {
     try {
-      final result = await FirestoreService.getAllPosts();
-      if (mounted && result.isSuccess) {
-        final posts = result.data!;
+      final postsProvider = Provider.of<PostsProvider>(context, listen: false);
+      final posts = await postsProvider.getUserPosts('debug');
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('全投稿数: ${posts.length}件（デバッグ情報）')),
         );
@@ -45,9 +46,11 @@ class _CasualPostScreenState extends State<CasualPostScreen> {
             child: Center(
               child: Container(
                 constraints: const BoxConstraints(maxWidth: 800),
-                child: StreamBuilder<List<PostModel>>(
-                  stream: FirestoreService.getCasualPosts(),
-                  builder: (context, snapshot) {
+                child: Consumer<PostsProvider>(
+                  builder: (context, postsProvider, child) {
+                    return StreamBuilder<List<PostEntity>>(
+                      stream: postsProvider.getCasualPosts(),
+                      builder: (context, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {
                       return Center(
                         child: CircularProgressIndicator(
@@ -140,12 +143,14 @@ class _CasualPostScreenState extends State<CasualPostScreen> {
                       );
                     }
                     
-                    return ListView.builder(
-                      controller: _scrollController,
-                      itemCount: snapshot.data!.length,
-                      itemBuilder: (context, index) {
-                        final post = snapshot.data![index];
-                        return PostCard(post: post);
+                        return ListView.builder(
+                          controller: _scrollController,
+                          itemCount: snapshot.data!.length,
+                          itemBuilder: (context, index) {
+                            final post = snapshot.data![index];
+                            return PostCard(post: post);
+                          },
+                        );
                       },
                     );
                   },

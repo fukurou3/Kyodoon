@@ -1,12 +1,24 @@
 {
-  "dart.flutterSdkPath": null,
-  "dart.debugExternalLibraries": true,
-  "dart.debugExtensionBackendProtocol": "ws",
-  "dart.debugSdkLibraries": true,
-  "dart.flutterHotReloadOnSave": "always",
-  "dart.previewFlutterUiGuides": true,
-  "dart.previewFlutterUiGuidesCustomTracking": true,
-  "files.associations": {
-    "*.dart": "dart"
-  }
+  "cSpell.words": [
+    "subosito",
+    "pubspec",
+    "firestore",
+    "webframeworks",
+    "Kyodoon",
+    "firebase",
+    "googleapis",
+    "analyticsservice",
+    "ratelimiter",
+    "securityvalidator",
+    "applogger"
+  ],
+  "cSpell.language": "en,ja",
+  "cSpell.allowCompoundWords": true,
+  "cSpell.ignorePaths": [
+    "node_modules/**",
+    "build/**",
+    ".dart_tool/**",
+    "*.g.dart",
+    "*.freezed.dart"
+  ]
 }

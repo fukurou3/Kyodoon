@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
 import '../themes/app_theme.dart';
 import '../constants/app_constants.dart';
 import '../utils/validators.dart';
-import '../services/auth_service.dart';
+import '../features/auth/presentation/providers/auth_provider.dart';
 import '../utils/error_handler.dart';
 
 /// ログイン・新規登録フォームのウィジェット
@@ -49,59 +50,48 @@ class _LoginFormState extends State<LoginForm> {
     setState(() => _isLoading = true);
     
     try {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      
       if (widget.isLogin) {
-        final result = await AuthService.signInWithEmailAndPassword(
+        await authProvider.signIn(
           email: _emailController.text.trim(),
           password: _passwordController.text,
         );
         
-        if (result.isSuccess) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(ErrorHandler.getSuccessMessage('ログイン')),
-                backgroundColor: AppColors.text,
-              ),
-            );
-            widget.onSuccess?.call();
-          }
-        } else {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(result.error!),
-                backgroundColor: AppColors.text,
-              ),
-            );
-          }
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(ErrorHandler.getSuccessMessage('ログイン')),
+              backgroundColor: AppColors.text,
+            ),
+          );
+          widget.onSuccess?.call();
         }
       } else {
-        final result = await AuthService.registerWithEmailAndPassword(
+        await authProvider.signUp(
           email: _emailController.text.trim(),
           password: _passwordController.text,
-          name: _usernameController.text.trim(),
+          displayName: _usernameController.text.trim(),
         );
         
-        if (result.isSuccess) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('アカウントが作成されました'),
-                backgroundColor: AppColors.text,
-              ),
-            );
-            widget.onSuccess?.call();
-          }
-        } else {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(result.error!),
-                backgroundColor: AppColors.text,
-              ),
-            );
-          }
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('アカウントが作成されました'),
+              backgroundColor: AppColors.text,
+            ),
+          );
+          widget.onSuccess?.call();
         }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(widget.isLogin ? 'ログインに失敗しました' : '登録に失敗しました'),
+            backgroundColor: AppColors.text,
+          ),
+        );
       }
     } finally {
       if (mounted) {

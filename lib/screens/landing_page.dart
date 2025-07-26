@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
 import '../widgets/hero_section.dart';
-import '../models/post_models.dart';
-import '../services/firestore_service.dart';
+import '../features/posts/domain/entities/post_entity.dart';
+import '../features/posts/presentation/providers/posts_provider.dart';
 import '../widgets/post_card.dart';
 import '../themes/app_theme.dart';
 
@@ -102,8 +103,10 @@ class _AboutKyodoonPageState extends State<AboutKyodoonPage> {
                         const SizedBox(height: 16),
                         Container(
                           constraints: const BoxConstraints(maxWidth: 500),
-                          child: StreamBuilder<List<PostModel>>(
-                            stream: FirestoreService.getCasualPosts(limit: 3),
+                          child: Consumer<PostsProvider>(
+                            builder: (context, postsProvider, child) {
+                              return StreamBuilder<List<PostEntity>>(
+                                stream: postsProvider.getCasualPosts(limit: 3),
                             builder: (context, snapshot) {
                               if (!snapshot.hasData || snapshot.data!.isEmpty) {
                                 return _buildEmptyState(
@@ -116,6 +119,8 @@ class _AboutKyodoonPageState extends State<AboutKyodoonPage> {
                                 children: snapshot.data!
                                     .map((post) => PostCard(post: post))
                                     .toList(),
+                              );
+                            },
                               );
                             },
                           ),
@@ -156,8 +161,10 @@ class _AboutKyodoonPageState extends State<AboutKyodoonPage> {
                         const SizedBox(height: 16),
                         Container(
                           constraints: const BoxConstraints(maxWidth: 500),
-                          child: StreamBuilder<List<PostModel>>(
-                            stream: FirestoreService.getSeriousPosts(limit: 3),
+                          child: Consumer<PostsProvider>(
+                            builder: (context, postsProvider, child) {
+                              return StreamBuilder<List<PostEntity>>(
+                                stream: postsProvider.getSeriousPosts(limit: 3),
                             builder: (context, snapshot) {
                               if (!snapshot.hasData || snapshot.data!.isEmpty) {
                                 return _buildEmptyState(
@@ -170,6 +177,8 @@ class _AboutKyodoonPageState extends State<AboutKyodoonPage> {
                                 children: snapshot.data!
                                     .map((post) => PostCard(post: post))
                                     .toList(),
+                              );
+                            },
                               );
                             },
                           ),

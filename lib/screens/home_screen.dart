@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
 import '../widgets/post_card.dart';
-import '../models/post_models.dart';
-import '../services/firestore_service.dart';
+import '../features/posts/domain/entities/post_entity.dart';
+import '../features/posts/presentation/providers/posts_provider.dart';
 import '../themes/app_theme.dart';
 import 'landing_page.dart';
 import 'terms_screen.dart';
@@ -58,8 +59,10 @@ class _HomePageContentState extends State<HomePageContent> {
           const SizedBox(height: 24),
           
           // 投稿一覧
-          StreamBuilder<List<PostModel>>(
-            stream: FirestoreService.getAllPostsStream(),
+          Consumer<PostsProvider>(
+            builder: (context, postsProvider, child) {
+              return StreamBuilder<List<PostEntity>>(
+                stream: postsProvider.getAllPostsStream(),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return const Center(
@@ -111,6 +114,8 @@ class _HomePageContentState extends State<HomePageContent> {
                     child: PostCard(post: post),
                   );
                 },
+              );
+            },
               );
             },
           ),

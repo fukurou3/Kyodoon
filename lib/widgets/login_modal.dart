@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../services/auth_service.dart';
+import 'package:provider/provider.dart';
+import '../features/auth/presentation/providers/auth_provider.dart';
+import '../utils/validators.dart';
+import '../utils/security_validator.dart';
 
 class LoginModal extends StatefulWidget {
   const LoginModal({super.key});
@@ -25,28 +28,74 @@ class _LoginModalState extends State<LoginModal> {
   }
 
   Future<void> _handleAuth() async {
-    if (_emailController.text.trim().isEmpty || 
-        _passwordController.text.trim().isEmpty ||
-        (!_isLogin && _nameController.text.trim().isEmpty)) {
+    // 入力値の取得とトリム
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
+    final name = _nameController.text.trim();
+
+    // 基本的な空値チェック
+    if (email.isEmpty || password.isEmpty || (!_isLogin && name.isEmpty)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('すべてのフィールドを入力してください')),
       );
       return;
     }
 
+    // セキュリティ強化されたバリデーション
+    String? validationError;
+
+    // メールアドレスのバリデーション
+    validationError = Validators.validateEmail(email);
+    if (validationError != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(validationError)),
+      );
+      return;
+    }
+
+    // パスワードのバリデーション
+    validationError = Validators.validatePassword(password);
+    if (validationError != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(validationError)),
+      );
+      return;
+    }
+
+    // ユーザー名のバリデーション（新規登録時のみ）
+    if (!_isLogin) {
+      validationError = Validators.validateUsername(name);
+      if (validationError != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(validationError)),
+        );
+        return;
+      }
+
+      // ユーザー名のXSS攻撃チェック
+      if (SecurityValidator.containsXssThreats(name)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('ユーザー名に不正なコンテンツが含まれています')),
+        );
+        return;
+      }
+    }
+
     setState(() => _isLoading = true);
 
     try {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      
       if (_isLogin) {
-        await AuthService.signInWithEmailAndPassword(
-          email: _emailController.text.trim(),
-          password: _passwordController.text.trim(),
+        await authProvider.signIn(
+          email: email,
+          password: password,
         );
       } else {
-        await AuthService.registerWithEmailAndPassword(
-          email: _emailController.text.trim(),
-          password: _passwordController.text.trim(),
-          name: _nameController.text.trim(),
+        await authProvider.signUp(
+          email: email,
+          password: password,
+          displayName: name,
         );
       }
       

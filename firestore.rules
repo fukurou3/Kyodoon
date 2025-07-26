@@ -47,10 +47,22 @@ service cloud.firestore {
     
     // Notifications collection - ユーザーは自分の通知のみアクセス可能
     match /notifications/{notificationId} {
-      allow read, write: if request.auth != null 
+      // 既存通知の読み取り・更新・削除（自分の通知のみ）
+      allow read, update, delete: if request.auth != null 
         && request.auth.uid == resource.data.userId;
+      
+      // 通知作成（厳格な権限制御）
       allow create: if request.auth != null 
-        && validateNotificationData(request.resource.data);
+        && validateNotificationData(request.resource.data)
+        && (
+          // 自分宛ての通知作成（テスト用など）
+          request.resource.data.userId == request.auth.uid
+          // システム通知は管理者のみ作成可能
+          || (request.resource.data.type == 'system' && isAdmin())
+          // 他ユーザーへの通知（いいね、コメント等）は、
+          // サーバーサイドでCloud Functionsを使用して作成することを推奨
+          // クライアントからの直接作成は原則禁止
+        );
     }
     
     // Reports collection - 認証済みユーザーのみ報告可能
@@ -60,6 +72,18 @@ service cloud.firestore {
         && request.resource.data.reporterId == request.auth.uid;
       // 管理者のみ読み取り可能（実装時に管理者判定ロジック追加）
       allow read: if request.auth != null && isAdmin();
+    }
+    
+    // User Preferences collection - ユーザーは自分の設定のみアクセス可能
+    match /user_preferences/{userId} {
+      // 自分の設定のみ読み取り・更新・削除可能
+      allow read, update, delete: if request.auth != null 
+        && request.auth.uid == userId;
+      
+      // 設定作成（初回ログイン時など）
+      allow create: if request.auth != null 
+        && request.auth.uid == userId
+        && validateUserPreferencesData(request.resource.data);
     }
   }
   
@@ -82,11 +106,51 @@ service cloud.firestore {
            data.userId is string &&
            data.username is string &&
            data.createdAt is timestamp &&
-           // XSS対策：危険なHTMLタグを含まないかチェック
-           !data.content.matches('.*<script.*') &&
-           !data.content.matches('.*javascript:.*') &&
-           !data.content.matches('.*onclick.*') &&
-           !data.content.matches('.*onerror.*');
+           // 強化されたXSS対策：包括的な危険パターン検証
+           !hasAdvancedXSSPatterns(data.content);
+  }
+  
+  // 高度なXSS攻撃パターンを検出する関数
+  function hasAdvancedXSSPatterns(content) {
+    return (
+      // 基本的なscriptタグ（大文字小文字混在対応）
+      content.lower().matches('.*<script.*') ||
+      content.upper().matches('.*<SCRIPT.*') ||
+      
+      // JavaScript実行（様々な記法に対応）
+      content.lower().matches('.*javascript:.*') ||
+      content.lower().matches('.*vbscript:.*') ||
+      content.lower().matches('.*data:.*') ||
+      
+      // イベントハンドラー（包括的）
+      content.lower().matches('.*on\\w+\\s*=.*') ||
+      content.lower().matches('.*onclick.*') ||
+      content.lower().matches('.*onload.*') ||
+      content.lower().matches('.*onerror.*') ||
+      content.lower().matches('.*onfocus.*') ||
+      content.lower().matches('.*onmouseover.*') ||
+      content.lower().matches('.*onsubmit.*') ||
+      
+      // 危険なタグとスキーム
+      content.lower().matches('.*<iframe.*') ||
+      content.lower().matches('.*<object.*') ||
+      content.lower().matches('.*<embed.*') ||
+      content.lower().matches('.*<form.*') ||
+      content.lower().matches('.*<input.*') ||
+      content.lower().matches('.*<meta.*') ||
+      content.lower().matches('.*<link.*') ||
+      content.lower().matches('.*<style.*') ||
+      
+      // エンコーディングによるバイパス対策
+      content.matches('.*&#.*') ||
+      content.matches('.*%[0-9a-fA-F][0-9a-fA-F].*') ||
+      content.matches('.*\\\\u[0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F].*') ||
+      
+      // 制御文字・NULL文字
+      content.matches('.*\\x00.*') ||
+      content.matches('.*\\n.*<.*') ||
+      content.matches('.*\\r.*<.*')
+    );
   }
   
   function validateCommentData(data) {
@@ -96,20 +160,31 @@ service cloud.firestore {
            data.userId is string &&
            data.username is string &&
            data.createdAt is timestamp &&
-           // XSS対策
-           !data.content.matches('.*<script.*') &&
-           !data.content.matches('.*javascript:.*');
+           // 強化されたXSS対策：コメントでも同様の検証を適用
+           !hasAdvancedXSSPatterns(data.content);
   }
   
   function validateNotificationData(data) {
-    return data.keys().hasAll(['type', 'userId', 'message', 'createdAt', 'read']) &&
+    return data.keys().hasAll(['type', 'userId', 'message', 'createdAt', 'isRead']) &&
            data.type is string &&
-           data.type in ['like', 'comment', 'follow', 'system'] &&
+           data.type in ['like', 'comment', 'follow', 'mention', 'reply', 'repost', 'system'] &&
            data.userId is string &&
            data.message is string &&
-           data.message.size() <= 200 &&
+           data.message.size() <= 500 &&
            data.createdAt is timestamp &&
-           data.read is bool;
+           data.isRead is bool &&
+           // XSS対策：通知メッセージの危険なタグ検証
+           !data.message.matches('.*<script.*') &&
+           !data.message.matches('.*javascript:.*') &&
+           !data.message.matches('.*onclick.*') &&
+           !data.message.matches('.*onerror.*') &&
+           !data.message.matches('.*<iframe.*') &&
+           !data.message.matches('.*<object.*') &&
+           !data.message.matches('.*<embed.*') &&
+           // 追加のオプションフィールドのバリデーション
+           (!data.keys().hasAny(['fromUserId']) || data.fromUserId is string) &&
+           (!data.keys().hasAny(['metadata']) || data.metadata is map) &&
+           (!data.keys().hasAny(['updatedAt']) || data.updatedAt is timestamp);
   }
   
   function validateReportData(data) {
@@ -121,6 +196,51 @@ service cloud.firestore {
            data.reason is string &&
            data.reason.size() >= 1 && data.reason.size() <= 500 &&
            data.createdAt is timestamp;
+  }
+  
+  // ユーザー設定データのバリデーション関数
+  function validateUserPreferencesData(data) {
+    return (
+      // 基本フィールドの存在確認
+      data.keys().hasAny(['notifications', 'privacy', 'display']) &&
+      
+      // blockedUsersの検証
+      (!data.keys().hasAny(['blockedUsers']) || (
+        data.blockedUsers is list &&
+        data.blockedUsers.size() <= 1000 && // 最大1000ユーザーまで
+        validateUserIdList(data.blockedUsers)
+      )) &&
+      
+      // mutedKeywordsの検証
+      (!data.keys().hasAny(['mutedKeywords']) || (
+        data.mutedKeywords is list &&
+        data.mutedKeywords.size() <= 500 && // 最大500キーワードまで
+        validateKeywordList(data.mutedKeywords)
+      )) &&
+      
+      // タイムスタンプの検証
+      (!data.keys().hasAny(['updatedAt']) || data.updatedAt is timestamp)
+    );
+  }
+  
+  // ユーザーIDリストの検証
+  function validateUserIdList(userIds) {
+    return userIds.size() == 0 || userIds.all((userId) => 
+      userId is string && 
+      userId.size() > 0 && 
+      userId.size() <= 128 && // Firebase Auth UIDの最大長
+      userId.matches('^[a-zA-Z0-9][a-zA-Z0-9._-]*$') // 英数字とハイフン、ピリオド、アンダースコアのみ
+    );
+  }
+  
+  // キーワードリストの検証（XSS対策含む）
+  function validateKeywordList(keywords) {
+    return keywords.size() == 0 || keywords.all((keyword) =>
+      keyword is string &&
+      keyword.size() > 0 &&
+      keyword.size() <= 100 && // 1キーワード最大100文字
+      !hasAdvancedXSSPatterns(keyword) // XSS攻撃パターンを検出
+    );
   }
   
   // 管理者判定関数（実装時に適切な管理者識別ロジックに変更）

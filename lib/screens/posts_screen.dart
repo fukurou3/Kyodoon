@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import '../models/post_models.dart';
-import '../services/firestore_service.dart';
+import 'package:provider/provider.dart';
+import '../features/posts/domain/entities/post_entity.dart';
+import '../features/posts/presentation/providers/posts_provider.dart';
 import '../widgets/post_card.dart';
 import '../widgets/casual_post_modal.dart';
 import '../widgets/serious_post_modal.dart';
@@ -133,8 +133,10 @@ class _PostsScreenState extends State<PostsScreen> with SingleTickerProviderStat
           ),
           // 投稿リスト
           Expanded(
-            child: StreamBuilder<QuerySnapshot>(
-              stream: FirestoreService.getPostsStream(_selectedType),
+            child: Consumer<PostsProvider>(
+              builder: (context, postsProvider, child) {
+                return StreamBuilder<List<PostEntity>>(
+                  stream: postsProvider.getPostsStream(_selectedType),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(
@@ -151,7 +153,7 @@ class _PostsScreenState extends State<PostsScreen> with SingleTickerProviderStat
                   );
                 }
 
-                final posts = snapshot.data?.docs ?? [];
+                final posts = snapshot.data ?? [];
 
                 if (posts.isEmpty) {
                   return Center(
@@ -181,27 +183,18 @@ class _PostsScreenState extends State<PostsScreen> with SingleTickerProviderStat
                   );
                 }
 
-                // クライアントサイドで日付順にソート
-                final sortedPosts = posts.toList();
-                sortedPosts.sort((a, b) {
-                  final aData = a.data() as Map<String, dynamic>;
-                  final bData = b.data() as Map<String, dynamic>;
-                  final aTime = (aData['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now();
-                  final bTime = (bData['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now();
-                  return bTime.compareTo(aTime); // 新しい順
-                });
-
                 return ListView.builder(
                   padding: const EdgeInsets.symmetric(horizontal: 0),
-                  itemCount: sortedPosts.length,
+                  itemCount: posts.length,
                   itemBuilder: (context, index) {
-                    final postData = sortedPosts[index].data() as Map<String, dynamic>;
-                    final post = PostModel.fromFirestore(sortedPosts[index].id, postData);
+                    final post = posts[index];
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 12),
                       child: PostCard(post: post),
                     );
                   },
+                );
+              },
                 );
               },
             ),

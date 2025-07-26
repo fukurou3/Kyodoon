@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../services/auth_service.dart';
-import '../services/firestore_service.dart';
+import 'package:provider/provider.dart';
+import '../features/auth/presentation/providers/auth_provider.dart';
+import '../features/posts/presentation/providers/posts_provider.dart';
 import '../themes/app_theme.dart';
 import '../constants/app_constants.dart';
 import '../utils/error_handler.dart';
@@ -62,34 +63,40 @@ class _CasualPostModalState extends State<CasualPostModal> {
       return;
     }
     
-    if (!AuthService.isLoggedIn) {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    if (!authProvider.isLoggedIn) {
       _showLoginModal();
       return;
     }
     
     setState(() => _isPosting = true);
     
-    final result = await FirestoreService.createCasualPost(
-      _tweetController.text.trim(),
-      isAnnouncement: _isAnnouncement,
-    );
-    
-    if (mounted) {
-      setState(() => _isPosting = false);
+    try {
+      final postsProvider = Provider.of<PostsProvider>(context, listen: false);
+      await postsProvider.createCasualPost(
+        _tweetController.text.trim(),
+        isAnnouncement: _isAnnouncement,
+      );
       
-      if (result.isSuccess) {
+      if (mounted) {
         _tweetController.clear();
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(ErrorHandler.getSuccessMessage('投稿'))),
         );
-      } else {
+      }
+    } catch (e) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(result.error ?? ErrorHandler.handleError('不明なエラーが発生しました')),
+            content: Text(ErrorHandler.handleError('投稿に失敗しました')),
             backgroundColor: AppColors.text,
           ),
         );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isPosting = false);
       }
     }
   }
@@ -128,14 +135,13 @@ class _CasualPostModalState extends State<CasualPostModal> {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                StreamBuilder(
-                  stream: AuthService.authStateChanges,
-                  builder: (context, snapshot) {
+                Consumer<AuthProvider>(
+                  builder: (context, authProvider, child) {
                     return CircleAvatar(
-                      backgroundColor: snapshot.hasData ? AppColors.background : AppColors.background,
+                      backgroundColor: authProvider.isLoggedIn ? AppColors.background : AppColors.background,
                       child: Icon(
                         Icons.person, 
-                        color: snapshot.hasData ? AppColors.text : AppColors.text,
+                        color: authProvider.isLoggedIn ? AppColors.text : AppColors.text,
                       ),
                     );
                   },
@@ -144,19 +150,18 @@ class _CasualPostModalState extends State<CasualPostModal> {
                 Expanded(
                   child: Column(
                     children: [
-                      StreamBuilder(
-                        stream: AuthService.authStateChanges,
-                        builder: (context, snapshot) {
+                      Consumer<AuthProvider>(
+                        builder: (context, authProvider, child) {
                           return TextField(
                             controller: _tweetController,
                             maxLines: 5,
                             decoration: InputDecoration(
-                              hintText: snapshot.hasData ? 'いまどうしてる？' : 'ツイートするにはログインしてください',
+                              hintText: authProvider.isLoggedIn ? 'いまどうしてる？' : 'ツイートするにはログインしてください',
                               border: const OutlineInputBorder(),
                             ),
                             style: const TextStyle(fontSize: AppConstants.fontSizeBody),
-                            onTap: snapshot.hasData ? null : _showLoginModal,
-                            readOnly: !snapshot.hasData,
+                            onTap: authProvider.isLoggedIn ? null : _showLoginModal,
+                            readOnly: !authProvider.isLoggedIn,
                           );
                         },
                       ),
@@ -200,10 +205,9 @@ class _CasualPostModalState extends State<CasualPostModal> {
                                   : AppColors.text,
                             ),
                           ),
-                          StreamBuilder(
-                            stream: AuthService.authStateChanges,
-                            builder: (context, snapshot) {
-                              final isLoggedIn = snapshot.hasData;
+                          Consumer<AuthProvider>(
+                            builder: (context, authProvider, child) {
+                              final isLoggedIn = authProvider.isLoggedIn;
                               final hasText = _tweetController.text.trim().isNotEmpty;
                               
                               return ElevatedButton(

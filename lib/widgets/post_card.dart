@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
-import '../models/post_models.dart';
+import 'package:provider/provider.dart';
+import '../features/posts/domain/entities/post_entity.dart';
 import '../utils/date_utils.dart' as app_date_utils;
 import '../utils/navigation_helper.dart';
-import '../services/auth_service.dart';
+import '../features/auth/presentation/providers/auth_provider.dart';
 import '../themes/app_theme.dart';
+import '../utils/security_validator.dart';
 
 class PostCard extends StatefulWidget {
-  final PostModel post;
+  final PostEntity post;
 
   const PostCard({super.key, required this.post});
 
@@ -17,199 +19,239 @@ class PostCard extends StatefulWidget {
 class _PostCardState extends State<PostCard> {
   bool _isHovered = false;
 
+  /// セキュアなユーザー名生成（XSS対策含む）
+  String _generateSafeUsername(String authorName) {
+    // XSS攻撃チェック
+    if (SecurityValidator.containsXssThreats(authorName)) {
+      return 'user'; // 危険なコンテンツが検出された場合はデフォルト名
+    }
+
+    // HTMLエンティティをサニタイズ
+    final sanitizedName = SecurityValidator.sanitizeHtml(authorName);
+    
+    // 安全な文字のみを使用してユーザー名を生成
+    final safeName = sanitizedName
+        .toLowerCase()
+        .replaceAll(RegExp(r'[^a-z0-9\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]'), '')
+        .replaceAll(' ', '');
+    
+    // 空文字列の場合はデフォルト名を返す
+    if (safeName.isEmpty) {
+      return 'user';
+    }
+    
+    // 長さ制限（最大20文字）
+    return safeName.length > 20 ? safeName.substring(0, 20) : safeName;
+  }
+
+  /// セキュアなテキスト表示（XSS対策含む）
+  String _sanitizeDisplayText(String text) {
+    // XSS攻撃チェック
+    if (SecurityValidator.containsXssThreats(text)) {
+      return '***'; // 危険なコンテンツが検出された場合は安全な文字列に置換
+    }
+
+    // HTMLエンティティをサニタイズ
+    return SecurityValidator.sanitizeHtml(text);
+  }
+
   @override
   Widget build(BuildContext context) {
-    return MouseRegion(
-      onEnter: (_) => setState(() => _isHovered = true),
-      onExit: (_) => setState(() => _isHovered = false),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        margin: const EdgeInsets.symmetric(horizontal: 0, vertical: 0),
-        decoration: BoxDecoration(
-          color: _isHovered ? AppColors.background : AppColors.background,
-          border: Border(
-            bottom: BorderSide(color: AppColors.text, width: 1),
-          ),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // アバター
-              GestureDetector(
-                onTap: () {
-                  // 自分の投稿の場合はマイページを表示
-                  if (widget.post.authorId == AuthService.getCurrentUserId()) {
-                    NavigationHelper.showMyPage();
-                  } else {
-                    // 他人のマイページを表示
-                    NavigationHelper.showUserPage(widget.post.authorId);
-                  }
-                },
-                child: Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: LinearGradient(
-                      colors: widget.post.type == PostType.casual 
-                          ? [AppColors.text, AppColors.text]
-                          : [AppColors.text, AppColors.text],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
+    return Consumer<AuthProvider>(
+      builder: (context, authProvider, child) {
+        return MouseRegion(
+          onEnter: (_) => setState(() => _isHovered = true),
+          onExit: (_) => setState(() => _isHovered = false),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            margin: const EdgeInsets.symmetric(horizontal: 0, vertical: 0),
+            decoration: BoxDecoration(
+              color: _isHovered ? AppColors.background : AppColors.background,
+              border: Border(
+                bottom: BorderSide(color: AppColors.text, width: 1),
+              ),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // アバター
+                  GestureDetector(
+                    onTap: () {
+                      // 自分の投稿の場合はマイページを表示
+                      if (widget.post.authorId == authProvider.currentUser?.id) {
+                        NavigationHelper.showMyPage();
+                      } else {
+                        // 他人のマイページを表示
+                        NavigationHelper.showUserPage(widget.post.authorId);
+                      }
+                    },
+                    child: Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: LinearGradient(
+                          colors: widget.post.type == PostType.casual 
+                              ? [AppColors.text, AppColors.text]
+                              : [AppColors.text, AppColors.text],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                      ),
+                      child: Icon(
+                        widget.post.type == PostType.casual ? Icons.chat_bubble_outline : Icons.assignment_outlined,
+                        color: Colors.white,
+                        size: 20,
+                      ),
                     ),
                   ),
-                  child: Icon(
-                    widget.post.type == PostType.casual ? Icons.chat_bubble_outline : Icons.assignment_outlined,
-                    color: Colors.white,
-                    size: 20,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              
-              // コンテンツ部分
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // ヘッダー情報
-                    Row(
+                  const SizedBox(width: 12),
+                  
+                  // コンテンツ部分
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        GestureDetector(
-                          onTap: () {
-                            // 自分の投稿の場合はマイページを表示
-                            if (widget.post.authorId == AuthService.getCurrentUserId()) {
-                              NavigationHelper.showMyPage();
-                            } else {
-                              // 他人のマイページを表示
-                              NavigationHelper.showUserPage(widget.post.authorId);
-                            }
-                          },
-                          child: Text(
-                            widget.post.authorName,
-                            style: TextStyle(
-                              fontWeight: FontWeight.w700,
-                              fontSize: 15,
-                              color: widget.post.authorId == AuthService.getCurrentUserId()
-                                  ? AppColors.text
-                                  : AppColors.text, // 他人の名前
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          '@${widget.post.authorName.toLowerCase().replaceAll(' ', '')}',
-                          style: TextStyle(
-                            color: AppColors.text,
-                            fontSize: 15,
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          '·',
-                          style: TextStyle(
-                            color: AppColors.text,
-                            fontSize: 15,
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          app_date_utils.DateUtils.formatDateTime(widget.post.createdAt),
-                          style: TextStyle(
-                            color: AppColors.text,
-                            fontSize: 15,
-                          ),
-                        ),
-                        // 告知バッジ
-                        if (widget.post.isAnnouncement) ...[
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: AppColors.background,
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: AppColors.text, width: 1),
-                            ),
-                            child: Text(
-                              '告知',
-                              style: TextStyle(
-                                color: AppColors.text,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w600,
+                        // ヘッダー情報
+                        Row(
+                          children: [
+                            GestureDetector(
+                              onTap: () {
+                                // 自分の投稿の場合はマイページを表示
+                                if (widget.post.authorId == authProvider.currentUser?.id) {
+                                  NavigationHelper.showMyPage();
+                                } else {
+                                  // 他人のマイページを表示
+                                  NavigationHelper.showUserPage(widget.post.authorId);
+                                }
+                              },
+                              child: Text(
+                                widget.post.authorName,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 15,
+                                  color: widget.post.authorId == authProvider.currentUser?.id
+                                      ? AppColors.text
+                                      : AppColors.text, // 他人の名前
+                                ),
                               ),
                             ),
-                          ),
-                        ],
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-
-                    // タイトル（真剣投稿のみ）
-                    if (widget.post.title != null) ...[
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: AppColors.background,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: AppColors.text, width: 1),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.assignment, size: 14, color: AppColors.text),
                             const SizedBox(width: 4),
                             Text(
-                              '真剣投稿',
+                              '@${_generateSafeUsername(widget.post.authorName)}',
                               style: TextStyle(
                                 color: AppColors.text,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
+                                fontSize: 15,
                               ),
                             ),
+                            const SizedBox(width: 4),
+                            Text(
+                              '·',
+                              style: TextStyle(
+                                color: AppColors.text,
+                                fontSize: 15,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              app_date_utils.DateUtils.formatDateTime(widget.post.createdAt),
+                              style: TextStyle(
+                                color: AppColors.text,
+                                fontSize: 15,
+                              ),
+                            ),
+                            // 告知バッジ
+                            if (widget.post.isAnnouncement) ...[
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: AppColors.background,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: AppColors.text, width: 1),
+                                ),
+                                child: Text(
+                                  '告知',
+                                  style: TextStyle(
+                                    color: AppColors.text,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ],
                         ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        widget.post.title!,
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.text,
-                          height: 1.3,
+                        const SizedBox(height: 4),
+
+                        // タイトル（真剣投稿のみ）
+                        if (widget.post.title != null) ...[
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: AppColors.background,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: AppColors.text, width: 1),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.assignment, size: 14, color: AppColors.text),
+                                const SizedBox(width: 4),
+                                Text(
+                                  '真剣投稿',
+                                  style: TextStyle(
+                                    color: AppColors.text,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            widget.post.title!,
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.text,
+                              height: 1.3,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                        ],
+
+                        // 内容
+                        Text(
+                          _sanitizeDisplayText(widget.post.content),
+                          style: TextStyle(
+                            fontSize: 15,
+                            color: AppColors.text,
+                            height: 1.3,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 8),
-                    ],
 
-                    // 内容
-                    Text(
-                      widget.post.content,
-                      style: TextStyle(
-                        fontSize: 15,
-                        color: AppColors.text,
-                        height: 1.3,
-                      ),
+                        // 位置情報
+                        if (widget.post.municipality != null) ...[
+                          const SizedBox(height: 12),
+                          _buildLocationInfo(),
+                        ],
+
+                        // アクションボタン
+                        const SizedBox(height: 12),
+                        _buildActionButtons(),
+                      ],
                     ),
-
-                    // 位置情報
-                    if (widget.post.hasLocation) ...[
-                      const SizedBox(height: 12),
-                      _buildLocationInfo(),
-                    ],
-
-                    // アクションボタン
-                    const SizedBox(height: 12),
-                    _buildActionButtons(),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
@@ -228,55 +270,13 @@ class _PostCardState extends State<PostCard> {
             Icon(Icons.location_city, size: 14, color: AppColors.text),
             const SizedBox(width: 4),
             Text(
-              widget.post.municipality!,
+              _sanitizeDisplayText(widget.post.municipality!),
               style: TextStyle(
                 color: AppColors.text,
                 fontSize: 12,
                 fontWeight: FontWeight.w500,
               ),
             ),
-          ],
-        ),
-      );
-    } else if (widget.post.municipality != null) {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(
-          color: AppColors.background,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.text, width: 1),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.location_on, size: 14, color: AppColors.text),
-                const SizedBox(width: 4),
-                Text(
-                  '詳細位置',
-                  style: TextStyle(
-                    color: AppColors.text,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-            if (widget.post.municipality != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 2),
-                child: Text(
-                  widget.post.municipality!,
-                  style: TextStyle(
-                    color: AppColors.text,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w400,
-                  ),
-                ),
-              ),
           ],
         ),
       );

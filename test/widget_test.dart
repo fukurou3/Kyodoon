@@ -7,13 +7,20 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:provider/provider.dart';
 
-import 'package:kyodoon/main.dart';
+import 'package:kyodoon/app.dart';
+import 'package:kyodoon/providers/theme_provider.dart';
 
 void main() {
   testWidgets('App loads smoke test', (WidgetTester tester) async {
     // Build our app and trigger a frame.
-    await tester.pumpWidget(const RegionalActivationApp());
+    await tester.pumpWidget(
+      ChangeNotifierProvider(
+        create: (_) => ThemeProvider(),
+        child: const KyodoonApp(),
+      ),
+    );
 
     // Verify that the app loads without crashing
     expect(find.byType(MaterialApp), findsOneWidget);

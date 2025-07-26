@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:dropdown_search/dropdown_search.dart';
-import '../models/post_models.dart';
-import '../services/auth_service.dart';
-import '../services/firestore_service.dart';
+import 'package:provider/provider.dart';
+import '../features/auth/presentation/providers/auth_provider.dart';
+import '../features/posts/presentation/providers/posts_provider.dart';
 import '../constants/japan_municipalities.dart';
 import '../themes/app_theme.dart';
 import '../constants/app_constants.dart';
@@ -82,37 +82,42 @@ class _SeriousPostModalState extends State<SeriousPostModal> {
       return;
     }
     
-    if (!AuthService.isLoggedIn) {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    if (!authProvider.isLoggedIn) {
       _showLoginModal();
       return;
     }
     
     setState(() => _isPosting = true);
     
-    final result = await FirestoreService.createSeriousPost(
-      title: _titleController.text.trim(),
-      content: _contentController.text.trim(),
-      locationType: _selectedMunicipality != null ? LocationType.municipality : null,
-      municipality: _selectedMunicipality,
-      isAnnouncement: _isAnnouncement,
-    );
-    
-    if (mounted) {
-      setState(() => _isPosting = false);
+    try {
+      final postsProvider = Provider.of<PostsProvider>(context, listen: false);
+      await postsProvider.createSeriousPost(
+        title: _titleController.text.trim(),
+        content: _contentController.text.trim(),
+        municipality: _selectedMunicipality,
+        isAnnouncement: _isAnnouncement,
+      );
       
-      if (result.isSuccess) {
+      if (mounted) {
         _resetForm();
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(ErrorHandler.getSuccessMessage('投稿'))),
         );
-      } else {
+      }
+    } catch (e) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(result.error ?? ErrorHandler.handleError('不明なエラーが発生しました')),
+            content: Text(ErrorHandler.handleError('投稿に失敗しました')),
             backgroundColor: AppColors.text,
           ),
         );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isPosting = false);
       }
     }
   }
@@ -161,10 +166,9 @@ class _SeriousPostModalState extends State<SeriousPostModal> {
             const SizedBox(height: 20),
             Expanded(
               child: SingleChildScrollView(
-                child: StreamBuilder(
-                  stream: AuthService.authStateChanges,
-                  builder: (context, snapshot) {
-                    final isLoggedIn = snapshot.hasData;
+                child: Consumer<AuthProvider>(
+                  builder: (context, authProvider, child) {
+                    final isLoggedIn = authProvider.isLoggedIn;
                     
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
