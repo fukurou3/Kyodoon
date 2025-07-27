@@ -24,7 +24,11 @@ service cloud.firestore {
         && request.resource.data.userId == request.auth.uid;
       
       // 投稿者のみ自分の投稿を更新・削除可能
-      allow update, delete: if request.auth != null 
+      allow update: if request.auth != null 
+        && request.auth.uid == resource.data.userId
+        && validatePostUpdateData(request.resource.data, resource.data);
+      
+      allow delete: if request.auth != null 
         && request.auth.uid == resource.data.userId;
       
       // Comments sub-collection
@@ -33,7 +37,11 @@ service cloud.firestore {
         allow create: if request.auth != null 
           && validateCommentData(request.resource.data)
           && request.resource.data.userId == request.auth.uid;
-        allow update, delete: if request.auth != null 
+        allow update: if request.auth != null 
+          && request.auth.uid == resource.data.userId
+          && validateCommentUpdateData(request.resource.data, resource.data);
+        
+        allow delete: if request.auth != null 
           && request.auth.uid == resource.data.userId;
       }
       
@@ -94,7 +102,9 @@ service cloud.firestore {
            data.username.size() >= 1 && data.username.size() <= 50 &&
            data.email is string &&
            data.email.matches('.*@.*\\..*') && // 簡易的なメール形式チェック
-           data.createdAt is timestamp;
+           data.createdAt is timestamp &&
+           // セキュリティ: 管理者権限フィールドの保護
+           !data.keys().hasAny(['role', 'permissions', 'isAdmin', 'adminLevel', 'privileges']);
   }
   
   function validatePostData(data) {
@@ -223,29 +233,75 @@ service cloud.firestore {
     );
   }
   
-  // ユーザーIDリストの検証
+  // ユーザーIDリストの検証（簡易版）
   function validateUserIdList(userIds) {
-    return userIds.size() == 0 || userIds.all((userId) => 
-      userId is string && 
-      userId.size() > 0 && 
-      userId.size() <= 128 && // Firebase Auth UIDの最大長
-      userId.matches('^[a-zA-Z0-9][a-zA-Z0-9._-]*$') // 英数字とハイフン、ピリオド、アンダースコアのみ
-    );
+    return userIds is list && userIds.size() <= 1000;
   }
   
-  // キーワードリストの検証（XSS対策含む）
+  // キーワードリストの検証（簡易版）
   function validateKeywordList(keywords) {
-    return keywords.size() == 0 || keywords.all((keyword) =>
-      keyword is string &&
-      keyword.size() > 0 &&
-      keyword.size() <= 100 && // 1キーワード最大100文字
-      !hasAdvancedXSSPatterns(keyword) // XSS攻撃パターンを検出
-    );
+    return keywords is list && keywords.size() <= 500;
   }
   
-  // 管理者判定関数（実装時に適切な管理者識別ロジックに変更）
+  // 管理者判定関数 - Firebase Admin Custom Claimsを使用
   function isAdmin() {
-    // TODO: 実際の管理者判定ロジックを実装
-    return false; // 現時点では全て false
+    // Firebase Admin Custom Claimsを使用した安全な権限管理
+    // Cloud Functions setAdminPrivileges で設定される
+    return request.auth != null && 
+           request.auth.token.get('admin', false) == true;
+  }
+  
+  // 上級管理者判定関数
+  function isSuperAdmin() {
+    // Cloud Functions setAdminPrivileges で super_admin レベルで設定される
+    return request.auth != null && 
+           request.auth.token.get('super_admin', false) == true;
+  }
+  
+  // 特定権限の確認関数
+  function hasPermission(permission) {
+    // Cloud Functions setAdminPrivileges で permissions 配列に設定される
+    return request.auth != null && 
+           request.auth.token.get('permissions', []).hasAny([permission]);
+  }
+
+  // 投稿更新データの検証関数
+  function validatePostUpdateData(newData, currentData) {
+    return (
+      // 基本的なデータ検証
+      validatePostData(newData) &&
+      
+      // 重要フィールドの変更禁止
+      newData.userId == currentData.userId &&  // ユーザーID変更禁止
+      newData.type == currentData.type &&      // 投稿タイプ変更禁止
+      newData.createdAt == currentData.createdAt && // 作成日時変更禁止
+      
+      // 認証ユーザーとの一致確認
+      newData.userId == request.auth.uid &&
+      
+      // 更新可能フィールドのみ許可（content, updatedAt など）
+      (!newData.keys().hasAny(['likeCount', 'commentCount']) || 
+       (newData.likeCount == currentData.likeCount && 
+        newData.commentCount == currentData.commentCount)) // カウント系は変更禁止
+    );
+  }
+
+  // コメント更新データの検証関数
+  function validateCommentUpdateData(newData, currentData) {
+    return (
+      // 基本的なデータ検証
+      validateCommentData(newData) &&
+      
+      // 重要フィールドの変更禁止
+      newData.userId == currentData.userId &&     // ユーザーID変更禁止
+      newData.createdAt == currentData.createdAt && // 作成日時変更禁止
+      
+      // 認証ユーザーとの一致確認
+      newData.userId == request.auth.uid &&
+      
+      // 更新可能フィールドは content と updatedAt のみ
+      (!newData.keys().hasAny(['likeCount']) || 
+       newData.likeCount == currentData.likeCount) // いいね数は変更禁止
+    );
   }
 }

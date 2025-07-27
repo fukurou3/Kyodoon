@@ -1,5 +1,5 @@
-import * as functions from 'firebase-functions';
-import * as admin from 'firebase-admin';
+import * as functions from "firebase-functions";
+import * as admin from "firebase-admin";
 
 /**
  * 通知作成の権限を検証
@@ -28,8 +28,8 @@ export async function validateNotificationPermission(
 
     // 2. ユーザーの存在確認
     const [currentUserDoc, targetUserDoc] = await Promise.all([
-      firestore.collection('users').doc(currentUserId).get(),
-      firestore.collection('users').doc(targetUserId).get()
+      firestore.collection("users").doc(currentUserId).get(),
+      firestore.collection("users").doc(targetUserId).get()
     ]);
 
     if (!currentUserDoc.exists) {
@@ -110,73 +110,73 @@ async function validateNotificationTypePermission(
   const firestore = admin.firestore();
 
   switch (notificationType) {
-    case 'like':
-    case 'comment':
-    case 'repost':
-      // 投稿が存在し、アクセス可能かチェック
-      if (!metadata?.postId) {
-        throw new functions.https.HttpsError(
-          "invalid-argument",
-          "postIdが必要です"
-        );
-      }
-      
-      const postDoc = await firestore.collection('posts').doc(metadata.postId).get();
-      if (!postDoc.exists) {
-        throw new functions.https.HttpsError(
-          "not-found",
-          "投稿が見つかりません"
-        );
-      }
-      
-      // 投稿の作成者がtargetUserIdと一致するかチェック
-      const postData = postDoc.data()!;
-      if (postData.authorId !== targetUserId) {
-        throw new functions.https.HttpsError(
-          "permission-denied",
-          "この投稿に対する通知を作成する権限がありません"
-        );
-      }
-      break;
-
-    case 'reply':
-      // コメントが存在し、アクセス可能かチェック
-      if (!metadata?.commentId) {
-        throw new functions.https.HttpsError(
-          "invalid-argument",
-          "commentIdが必要です"
-        );
-      }
-      
-      const commentDoc = await firestore.collection('comments').doc(metadata.commentId).get();
-      if (!commentDoc.exists) {
-        throw new functions.https.HttpsError(
-          "not-found",
-          "コメントが見つかりません"
-        );
-      }
-      
-      const commentData = commentDoc.data()!;
-      if (commentData.authorId !== targetUserId) {
-        throw new functions.https.HttpsError(
-          "permission-denied",
-          "このコメントに対する通知を作成する権限がありません"
-        );
-      }
-      break;
-
-    case 'follow':
-      // フォロー関係の重複チェック（必要に応じて）
-      break;
-
-    case 'mention':
-      // メンション対象の妥当性チェック（必要に応じて）
-      break;
-
-    default:
+  case "like":
+  case "comment":
+  case "repost":
+    // 投稿が存在し、アクセス可能かチェック
+    if (!metadata?.postId) {
       throw new functions.https.HttpsError(
         "invalid-argument",
-        `未対応の通知タイプです: ${notificationType}`
+        "postIdが必要です"
       );
+    }
+      
+    const postDoc = await firestore.collection("posts").doc(metadata.postId).get();
+    if (!postDoc.exists) {
+      throw new functions.https.HttpsError(
+        "not-found",
+        "投稿が見つかりません"
+      );
+    }
+      
+    // 投稿の作成者がtargetUserIdと一致するかチェック
+    const postData = postDoc.data()!;
+    if (postData.authorId !== targetUserId) {
+      throw new functions.https.HttpsError(
+        "permission-denied",
+        "この投稿に対する通知を作成する権限がありません"
+      );
+    }
+    break;
+
+  case "reply":
+    // コメントが存在し、アクセス可能かチェック
+    if (!metadata?.commentId) {
+      throw new functions.https.HttpsError(
+        "invalid-argument",
+        "commentIdが必要です"
+      );
+    }
+      
+    const commentDoc = await firestore.collection("comments").doc(metadata.commentId).get();
+    if (!commentDoc.exists) {
+      throw new functions.https.HttpsError(
+        "not-found",
+        "コメントが見つかりません"
+      );
+    }
+      
+    const commentData = commentDoc.data()!;
+    if (commentData.authorId !== targetUserId) {
+      throw new functions.https.HttpsError(
+        "permission-denied",
+        "このコメントに対する通知を作成する権限がありません"
+      );
+    }
+    break;
+
+  case "follow":
+    // フォロー関係の重複チェック（必要に応じて）
+    break;
+
+  case "mention":
+    // メンション対象の妥当性チェック（必要に応じて）
+    break;
+
+  default:
+    throw new functions.https.HttpsError(
+      "invalid-argument",
+      `未対応の通知タイプです: ${notificationType}`
+    );
   }
 }

@@ -20,6 +20,7 @@ class AppInitializer {
   /// 3. アプリ設定初期化
   /// 4. Firebase初期化
   /// 5. サービス初期化
+  /// 6. 依存性注入コンテナ初期化（GetItベース）
   static Future<void> initialize() async {
     if (_initialized) return;
 

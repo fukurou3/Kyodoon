@@ -26,7 +26,14 @@ import '../services/external/secure_notification_service.dart';
 final GetIt sl = GetIt.instance;
 
 /// 依存性の初期化
+/// 
+/// GetItコンテナに全ての依存性を登録する
+/// 二重初期化を防ぐため、AppInitializer経由でのみ呼び出すこと
 Future<void> setupServiceLocator() async {
+  // 二重初期化チェック
+  if (sl.isRegistered<FirebaseAuth>()) {
+    return; // 既に初期化済み
+  }
   // External Dependencies
   sl.registerLazySingleton<FirebaseAuth>(() => FirebaseAuth.instance);
   sl.registerLazySingleton<FirebaseFirestore>(() => FirebaseFirestore.instance);

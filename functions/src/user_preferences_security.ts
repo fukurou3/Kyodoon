@@ -28,11 +28,11 @@ export const secureUpdateUserPreferences = functions
 
     try {
       // 既存設定の取得（将来の拡張用）
-      const preferencesDoc = await admin
-        .firestore()
-        .collection("user_preferences")
-        .doc(userId)
-        .get();
+      // const preferencesDoc = await admin
+      //   .firestore()
+      //   .collection("user_preferences")
+      //   .doc(userId)
+      //   .get();
 
       // 現在は使用していないが、将来の差分更新機能で使用予定
       // const currentPreferences: any = preferencesDoc.exists ? preferencesDoc.data() || {} : {};
@@ -87,7 +87,7 @@ export const secureUpdateUserPreferences = functions
         metadata: {
           userAgent: context.rawRequest?.headers["user-agent"] || "",
           ip: context.rawRequest?.ip || "",
-          fieldsUpdated: Object.keys(updateData).filter(key => key !== 'updatedAt'),
+          fieldsUpdated: Object.keys(updateData).filter(key => key !== "updatedAt"),
           blockedUsersCount: blockedUsers?.length || 0,
           mutedKeywordsCount: mutedKeywords?.length || 0,
         },
@@ -249,17 +249,17 @@ function validateNotificationSettings(notifications: any): any {
 
   // Boolean値の検証
   const booleanFields = [
-    'enablePushNotifications',
-    'enableEmailNotifications',
-    'notifyOnNewPosts',
-    'notifyOnComments',
-    'notifyOnLikes',
-    'notifyOnMentions'
+    "enablePushNotifications",
+    "enableEmailNotifications",
+    "notifyOnNewPosts",
+    "notifyOnComments",
+    "notifyOnLikes",
+    "notifyOnMentions"
   ];
 
   for (const field of booleanFields) {
     if (notifications.hasOwnProperty(field)) {
-      if (typeof notifications[field] !== 'boolean') {
+      if (typeof notifications[field] !== "boolean") {
         throw new functions.https.HttpsError(
           "invalid-argument",
           `通知設定の${field}はboolean値である必要があります`
@@ -280,16 +280,16 @@ function validatePrivacySettings(privacy: any): any {
 
   // Boolean値の検証
   const booleanFields = [
-    'profileIsPublic',
-    'showEmail',
-    'showLastLogin',
-    'allowDirectMessages',
-    'showActivityStatus'
+    "profileIsPublic",
+    "showEmail",
+    "showLastLogin",
+    "allowDirectMessages",
+    "showActivityStatus"
   ];
 
   for (const field of booleanFields) {
     if (privacy.hasOwnProperty(field)) {
-      if (typeof privacy[field] !== 'boolean') {
+      if (typeof privacy[field] !== "boolean") {
         throw new functions.https.HttpsError(
           "invalid-argument",
           `プライバシー設定の${field}はboolean値である必要があります`
@@ -309,9 +309,9 @@ function validateDisplaySettings(display: any): any {
   const validatedSettings: any = {};
 
   // 言語設定の検証
-  if (display.hasOwnProperty('language')) {
-    const allowedLanguages = ['ja', 'en'];
-    if (typeof display.language !== 'string' || !allowedLanguages.includes(display.language)) {
+  if (display.hasOwnProperty("language")) {
+    const allowedLanguages = ["ja", "en"];
+    if (typeof display.language !== "string" || !allowedLanguages.includes(display.language)) {
       throw new functions.https.HttpsError(
         "invalid-argument",
         "無効な言語設定です"
@@ -321,9 +321,9 @@ function validateDisplaySettings(display: any): any {
   }
 
   // テーマ設定の検証
-  if (display.hasOwnProperty('theme')) {
-    const allowedThemes = ['light', 'dark', 'system'];
-    if (typeof display.theme !== 'string' || !allowedThemes.includes(display.theme)) {
+  if (display.hasOwnProperty("theme")) {
+    const allowedThemes = ["light", "dark", "system"];
+    if (typeof display.theme !== "string" || !allowedThemes.includes(display.theme)) {
       throw new functions.https.HttpsError(
         "invalid-argument",
         "無効なテーマ設定です"
@@ -333,8 +333,8 @@ function validateDisplaySettings(display: any): any {
   }
 
   // 投稿数設定の検証
-  if (display.hasOwnProperty('postsPerPage')) {
-    if (typeof display.postsPerPage !== 'number' || 
+  if (display.hasOwnProperty("postsPerPage")) {
+    if (typeof display.postsPerPage !== "number" || 
         display.postsPerPage < 5 || 
         display.postsPerPage > 100) {
       throw new functions.https.HttpsError(
@@ -346,10 +346,10 @@ function validateDisplaySettings(display: any): any {
   }
 
   // Boolean値の検証
-  const booleanFields = ['showImages', 'autoRefresh'];
+  const booleanFields = ["showImages", "autoRefresh"];
   for (const field of booleanFields) {
     if (display.hasOwnProperty(field)) {
-      if (typeof display[field] !== 'boolean') {
+      if (typeof display[field] !== "boolean") {
         throw new functions.https.HttpsError(
           "invalid-argument",
           `表示設定の${field}はboolean値である必要があります`
@@ -385,7 +385,7 @@ async function validateBlockedUsersList(blockedUsers: string[], currentUserId: s
 
   for (const userId of blockedUsers) {
     // 基本的なバリデーション
-    if (typeof userId !== 'string' || userId.length === 0) {
+    if (typeof userId !== "string" || userId.length === 0) {
       throw new functions.https.HttpsError(
         "invalid-argument",
         "無効なユーザーIDが含まれています"
@@ -450,7 +450,7 @@ function validateMutedKeywordsList(mutedKeywords: string[]): string[] {
 
   for (const keyword of mutedKeywords) {
     // 基本的なバリデーション
-    if (typeof keyword !== 'string' || keyword.length === 0) {
+    if (typeof keyword !== "string" || keyword.length === 0) {
       throw new functions.https.HttpsError(
         "invalid-argument",
         "無効なキーワードが含まれています"

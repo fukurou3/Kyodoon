@@ -32,6 +32,10 @@ migrate_working_dir/
 .pub/
 /build/
 
+# Node.js dependencies
+node_modules/
+**/node_modules/
+
 # Symbolication related
 app.*.symbols
 
@@ -58,7 +62,22 @@ firebase_options.dart
 # Private Documentation (contains sensitive security information)
 docs_private/
 
+# Admin and Security Documentation (sensitive information)
+ADMIN_SETUP.md
+
+# Security Testing and Rules (sensitive patterns and test data)
+test_firestore_rules.js
+test/functions/post_update_security_test.js
+test/functions/privilege_escalation_test.js
+
+# Temporary Package Files (development only)
+package.json
+
 # Risk management and correction files
 リスク管理.txt
 修正点.txt
 .claude/commands/syuusei.md
+.claude/commands/aratana.md
+
+# Claude Configuration (contains local settings)
+.claude/settings.local.json

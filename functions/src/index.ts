@@ -1,7 +1,7 @@
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
-import { checkRateLimits } from './utils/rate_limiter';
-import { validateNotificationPermission, isUserBlocked } from './utils/permission_validator';
+import { checkRateLimits } from "./utils/rate_limiter";
+import { validateNotificationPermission, isUserBlocked } from "./utils/permission_validator";
 
 // 管理者機能をインポート
 export * from "./admin_functions";
@@ -250,7 +250,7 @@ export const cleanupOldNotifications = functions
 export const updateNotificationStats = functions
   .region("asia-northeast1")
   .firestore.document("notifications/{notificationId}")
-  .onCreate(async (snapshot, context) => {
+  .onCreate(async (snapshot, _context) => {
     const notification = snapshot.data();
     const userId = notification.userId;
 
@@ -272,7 +272,7 @@ export const updateNotificationStats = functions
 
       // 既存のカウントを取得して安全に更新
       const userData = userDoc.data()!;
-      const currentCount = typeof userData.unreadNotificationCount === 'number' 
+      const currentCount = typeof userData.unreadNotificationCount === "number" 
         ? userData.unreadNotificationCount 
         : 0;
 
@@ -316,7 +316,7 @@ export const onNotificationRead = functions
 
         // 現在のカウントを取得し、負の値にならないよう制御
         const userData = userDoc.data()!;
-        const currentCount = typeof userData.unreadNotificationCount === 'number' 
+        const currentCount = typeof userData.unreadNotificationCount === "number" 
           ? userData.unreadNotificationCount 
           : 0;
 

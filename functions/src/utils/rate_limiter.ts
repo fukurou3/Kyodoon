@@ -1,5 +1,5 @@
-import * as functions from 'firebase-functions';
-import * as admin from 'firebase-admin';
+import * as functions from "firebase-functions";
+import * as admin from "firebase-admin";
 
 /**
  * 多層レート制限チェック
@@ -156,7 +156,7 @@ export async function checkRateLimits(
       
       // 安全な型チェック
       const isVerified = targetUserData.isVerified === true;
-      const followersCount = typeof targetUserData.followersCount === 'number' 
+      const followersCount = typeof targetUserData.followersCount === "number" 
         ? targetUserData.followersCount 
         : 0;
 
@@ -177,7 +177,7 @@ export async function checkRateLimits(
       const senderIds = new Set(
         recentTargetNotifications.docs
           .map(doc => doc.data().fromUserId)
-          .filter(id => typeof id === 'string' && id.length > 0)
+          .filter(id => typeof id === "string" && id.length > 0)
       );
       
       // 異なる送信者から同タイプの通知が来ている場合（協調攻撃の可能性）
